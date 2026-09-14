@@ -22,9 +22,13 @@ async function handleMcp(req: Request, res: Response): Promise<void> {
 }
 
 function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const expected = `Bearer ${config.mcpAuthToken}`;
-  const given = req.header("authorization") ?? "";
+  // Tolerate secret-file trailing newlines and scheme casing; the token
+  // itself is still compared exactly (constant time).
+  const match = /^bearer\s+(.+)$/i.exec((req.header("authorization") ?? "").trim());
+  const given = (match?.[1] ?? "").trim();
+  const expected = config.mcpAuthToken.trim();
   const ok =
+    expected.length > 0 &&
     given.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
   if (!ok) {
@@ -45,7 +49,6 @@ async function main(): Promise<void> {
   app.post("/mcp", requireAuth, handleMcp);
   app.get("/mcp", requireAuth, handleMcp);
   app.delete("/mcp", requireAuth, handleMcp);
-  app.get("/healthz", (_req: Request, res: Response) => res.json({ ok: true }));
   app.listen(config.mcpPort, config.mcpHost, () => {
     console.log(`letta-appserver-mcp listening on ${config.mcpHost}:${config.mcpPort}/mcp`);
   });
