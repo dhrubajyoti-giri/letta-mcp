@@ -1,16 +1,16 @@
 # Complete stack: Letta App Server (letta-code image, :4500) + this MCP server (:6507).
-# The App Server image is built straight from the official deploy repo —
-# no separate clone needed (Compose pulls the git URL as build context).
+# The App Server runs straight from the prebuilt ghcr.io/letta-ai/letta-code
+# image — same `letta server` command the official deploy repo uses, no build.
 #
 # Quick start:
 #   cp .env.example .env   # set LETTA_APP_SERVER_TOKEN + a model key
-#   cp agents.json.example agents.json   # optional
-#   docker compose up --build -d
+#   cp agents.json.example agents.json   # required (may stay placeholder)
+#   docker compose up -d
 #   curl http://127.0.0.1:4500/readyz          # App Server
 #   curl http://127.0.0.1:6507/healthz         # MCP server
 services:
   app-server:
-    build: https://github.com/letta-ai/letta-app-server-deploy.git
+    image: ghcr.io/letta-ai/letta-code:${LETTA_CODE_VERSION:-latest}
     restart: unless-stopped
     env_file: .env
     environment:
@@ -21,6 +21,19 @@ services:
     volumes:
       - letta-state:/root/.letta
       - letta-workspace:/workspace
+    # Capability-token WS auth; token itself comes from .env, never baked in.
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        port="$${PORT:-4500}"
+        umask 077
+        printf '%s' "$$LETTA_APP_SERVER_TOKEN" > /tmp/letta-app-server-token
+        exec letta server --backend "$${LETTA_BACKEND:-local}" \
+          --listen "ws://0.0.0.0:$$port" \
+          --ws-auth capability-token \
+          --ws-token-file /tmp/letta-app-server-token
     healthcheck:
       test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${APP_SERVER_PORT:-4500}/readyz"]
       interval: 15s
