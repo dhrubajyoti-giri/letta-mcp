@@ -18,11 +18,27 @@ Resolution: explicit `agent_id` → `AGENTS_FILE` project mapping →
 All responses are a strict envelope:
 `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
 
-## Setup
+## Setup — full stack (App Server + MCP, one command)
 
 ```bash
-cp .env.example .env        # set LETTA_APP_SERVER_URL + TOKEN
+cp .env.example .env        # set LETTA_APP_SERVER_TOKEN + ANTHROPIC_API_KEY
 cp agents.json.example agents.json  # optional project mapping
+docker compose up --build -d
+curl http://127.0.0.1:4500/readyz   # App Server (letta-code image)
+curl http://127.0.0.1:6507/healthz  # MCP server
+```
+
+`docker-compose.yml` builds the App Server straight from the official
+`letta-ai/letta-app-server-deploy` repo (Dockerfile `FROM
+ghcr.io/letta-ai/letta-code`) alongside this MCP, on a shared network with
+persistent `letta-state` / `letta-workspace` volumes. All ports, tokens, and
+limits come from `.env` — see `.env.example`.
+
+## Setup — MCP alone (against an existing App Server)
+
+```bash
+cp .env.example .env        # set LETTA_APP_SERVER_URL=http://127.0.0.1:4500 + TOKEN
+cp agents.json.example agents.json  # optional
 npm install
 npm run build
 npm start                   # $MCP_HOST:$MCP_PORT/mcp, GET /healthz
