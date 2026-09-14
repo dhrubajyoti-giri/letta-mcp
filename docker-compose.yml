@@ -17,6 +17,9 @@ services:
     volumes:
       - letta-state:/root/.letta
       - letta-workspace:/workspace
+    # Lets the container reach Ollama/LM Studio running on the host (free path).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Capability-token WS auth; token itself comes from .env, never baked in.
     command:
       - sh
