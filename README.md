@@ -21,7 +21,7 @@ All responses are a strict envelope:
 ## Setup — full stack (App Server + MCP, one command)
 
 ```bash
-cp .env.example .env        # set LETTA_APP_SERVER_TOKEN (+ model path below)
+cp .env.example .env        # set LETTA_APP_SERVER_TOKEN + MCP_AUTH_TOKEN (+ model path below)
 docker compose up -d
 curl http://127.0.0.1:4500/readyz   # App Server (letta-code image)
 curl http://127.0.0.1:6507/healthz  # MCP server
@@ -47,17 +47,25 @@ volume where the agent reads/writes files during turns.
 ## Setup — MCP alone (against an existing App Server)
 
 ```bash
-cp .env.example .env        # set LETTA_APP_SERVER_URL=http://127.0.0.1:4500 + TOKEN
+cp .env.example .env        # set LETTA_APP_SERVER_URL=http://127.0.0.1:4500 + both tokens
 npm install
 npm run build
 npm start                   # $MCP_HOST:$MCP_PORT/mcp, GET /healthz
 ```
 
-## OpenCode wiring (HTTP)
+## OpenCode wiring (HTTP, authenticated)
 
 ```json
-{ "mcp": { "letta-mcp": { "type": "remote", "url": "http://localhost:6507/mcp", "enabled": true } } }
+{ "mcp": { "letta-mcp": {
+  "type": "remote",
+  "url": "http://localhost:6507/mcp",
+  "headers": { "Authorization": "Bearer {env:MCP_AUTH_TOKEN}" },
+  "enabled": true } } }
 ```
+
+`/mcp` requires the `MCP_AUTH_TOKEN` Bearer token (`401` without it);
+`/healthz` stays open for container healthchecks. The server refuses to
+start if `MCP_AUTH_TOKEN` is unset.
 
 ## Config
 
