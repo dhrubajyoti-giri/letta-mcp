@@ -1,9 +1,9 @@
 // Agent lifecycle tools: create / get / list / update / delete.
-// Every tool accepts an optional agent_id; resolution order is
-// explicit param -> AGENTS_FILE project mapping -> DEFAULT_LETTA_AGENT_ID.
+// The MCP keeps no project or default-agent state: every tool that acts on
+// an existing agent takes a required agent_id straight from the request.
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { config, resolveAgentId } from "../config.js";
+import { config } from "../config.js";
 import { getClient, isBridgeConfigured } from "../lettaClient.js";
 
 const ok = (data: unknown) => ({
@@ -14,8 +14,7 @@ const fail = (code: string, message: string) => ({
   isError: true as const,
 });
 
-const agentIdParam = z.string().optional().describe("Agent id. Falls back to project mapping then DEFAULT_LETTA_AGENT_ID.");
-const projectParam = z.string().optional().describe("Project key for AGENTS_FILE override lookup.");
+const agentId = z.string().min(1).describe("Agent id to act on.");
 
 export function registerAgentTools(server: McpServer): void {
   server.tool(
@@ -40,8 +39,8 @@ export function registerAgentTools(server: McpServer): void {
           ...(args.model ?? config.defaultModel ? { model: args.model ?? config.defaultModel } : {}),
           ...(args.tags ? { tags: args.tags } : {}),
         });
-        const agentId = typeof agent === "string" ? agent : agent?.id ?? agent;
-        return ok({ agent_id: agentId, agent });
+        const id = typeof agent === "string" ? agent : agent?.id ?? agent;
+        return ok({ agent_id: id, agent });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -50,13 +49,12 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_get",
-    "Get a single agent by id (defaults via agent resolution order).",
-    { agent_id: agentIdParam, project: projectParam },
+    "Get a single agent by id.",
+    { agent_id: agentId },
     async (args: any) => {
       try {
-        const id = await resolveAgentId(args.agent_id, args.project);
         const c = await getClient();
-        return ok(await c.agents.retrieve(id));
+        return ok(await c.agents.retrieve(args.agent_id));
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -81,8 +79,7 @@ export function registerAgentTools(server: McpServer): void {
     "agent_update",
     "Update an agent's editable fields (persona, human, name, description, model, tags). Only provided fields change.",
     {
-      agent_id: agentIdParam,
-      project: projectParam,
+      agent_id: agentId,
       persona: z.string().optional(),
       human: z.string().optional(),
       name: z.string().optional(),
@@ -92,14 +89,13 @@ export function registerAgentTools(server: McpServer): void {
     },
     async (args: any) => {
       try {
-        const id = await resolveAgentId(args.agent_id, args.project);
         const patch: Record<string, unknown> = {};
         for (const k of ["persona", "human", "name", "description", "model", "tags"]) {
           if (args[k] !== undefined) patch[k] = args[k];
         }
         if (Object.keys(patch).length === 0) return fail("invalid_request", "Nothing to update: provide at least one field.");
         const c = await getClient();
-        return ok(await c.agents.update(id, patch));
+        return ok(await c.agents.update(args.agent_id, patch));
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -110,8 +106,7 @@ export function registerAgentTools(server: McpServer): void {
     "agent_delete",
     "Delete an agent. Requires confirm:true — the calling agent must ask the user explicitly first.",
     {
-      agent_id: agentIdParam,
-      project: projectParam,
+      agent_id: agentId,
       confirm: z.boolean().describe("Must be true. Deletes are irreversible."),
     },
     async (args: any) => {
@@ -119,10 +114,9 @@ export function registerAgentTools(server: McpServer): void {
         return fail("confirmation_required", "agent_delete requires confirm:true and explicit user approval first.");
       }
       try {
-        const id = await resolveAgentId(args.agent_id, args.project);
         const c = await getClient();
-        await c.agents.delete(id);
-        return ok({ deleted: true, agent_id: id });
+        await c.agents.delete(args.agent_id);
+        return ok({ deleted: true, agent_id: args.agent_id });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -131,19 +125,12 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "bridge_health",
-    "Check App Server connectivity and default-agent configuration (no secrets leaked).",
+    "Check App Server connectivity (no secrets leaked).",
     {},
     async () => {
-      let defaultAgent: string | null = null;
-      try {
-        defaultAgent = await resolveAgentId();
-      } catch {
-        defaultAgent = null;
-      }
       return ok({
         bridge_configured: isBridgeConfigured(),
         letta_url: config.lettaUrl || null,
-        default_agent_resolved: Boolean(defaultAgent),
       });
     },
   );

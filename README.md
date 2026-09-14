@@ -11,9 +11,9 @@ Agents: `agent_create`, `agent_get`, `agent_list`, `agent_update`,
 Memory: `memory_save`, `memory_search`, `memory_get`,
 `memory_update_block`, `memory_delete`.
 
-Every agent/memory tool accepts optional `agent_id` (+ optional `project`).
-Resolution: explicit `agent_id` → `AGENTS_FILE` project mapping →
-`AGENTS_FILE` default → `DEFAULT_LETTA_AGENT_ID` → clear error.
+Every tool that acts on an agent takes a required `agent_id` — the MCP
+keeps no project mapping and no default agent. Which project uses which
+agent is decided per request by the caller; one project may use many agents.
 
 All responses are a strict envelope:
 `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
@@ -22,7 +22,6 @@ All responses are a strict envelope:
 
 ```bash
 cp .env.example .env        # set LETTA_APP_SERVER_TOKEN + ANTHROPIC_API_KEY
-cp agents.json.example agents.json  # required for the mount, may stay placeholder
 docker compose up -d
 curl http://127.0.0.1:4500/readyz   # App Server (letta-code image)
 curl http://127.0.0.1:6507/healthz  # MCP server
@@ -35,8 +34,6 @@ network with persistent `letta-state` / `letta-workspace` volumes. Pin it
 with `LETTA_CODE_VERSION`. All ports, tokens, and limits come from `.env`
 — see `.env.example`.
 
-`agents.json` is an optional project→agent map (`cp agents.json.example
-agents.json`; it must exist for the compose mount but may stay placeholder).
 `SESSION_CWD=/workspace` is the directory sessions work in — a persistent
 volume where the agent reads/writes files during turns.
 
@@ -44,7 +41,6 @@ volume where the agent reads/writes files during turns.
 
 ```bash
 cp .env.example .env        # set LETTA_APP_SERVER_URL=http://127.0.0.1:4500 + TOKEN
-cp agents.json.example agents.json  # optional
 npm install
 npm run build
 npm start                   # $MCP_HOST:$MCP_PORT/mcp, GET /healthz
