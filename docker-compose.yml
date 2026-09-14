@@ -26,6 +26,7 @@ services:
       - -c
       - |
         set -eu
+        test "$${LETTA_APP_SERVER_TOKEN:-}" || { echo "Set LETTA_APP_SERVER_TOKEN in .env (openssl rand -hex 32)." >&2; exit 1; }
         port="$${PORT:-4500}"
         umask 077
         printf '%s' "$$LETTA_APP_SERVER_TOKEN" > /tmp/letta-app-server-token
