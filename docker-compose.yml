@@ -4,7 +4,6 @@
 #
 # Quick start:
 #   cp .env.example .env   # set LETTA_APP_SERVER_TOKEN + a model key
-#   cp agents.json.example agents.json   # required (may stay placeholder)
 #   docker compose up -d
 #   curl http://127.0.0.1:4500/readyz          # App Server
 #   curl http://127.0.0.1:6507/healthz         # MCP server
@@ -50,8 +49,6 @@ services:
       - LETTA_APP_SERVER_URL=http://app-server:${APP_SERVER_PORT:-4500}
     ports:
       - "${MCP_PORT:-6507}:6507"
-    volumes:
-      - ./agents.json:/app/agents.json:ro
     depends_on:
       app-server:
         condition: service_healthy

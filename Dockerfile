@@ -5,7 +5,6 @@ RUN npm install --omit=dev 2>/dev/null || npm install --omit-dev 2>/dev/null || 
 COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
-ENV MCP_HOST=0.0.0.0 MCP_PORT=6507 AGENTS_FILE=/app/agents.json
-VOLUME ["/app/agents.json"]
+ENV MCP_HOST=0.0.0.0 MCP_PORT=6507
 EXPOSE 6507
 CMD ["node", "dist/index.js"]
