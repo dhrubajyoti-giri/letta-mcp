@@ -21,11 +21,18 @@ All responses are a strict envelope:
 ## Setup — full stack (App Server + MCP, one command)
 
 ```bash
-cp .env.example .env        # set LETTA_APP_SERVER_TOKEN + ANTHROPIC_API_KEY
+cp .env.example .env        # set LETTA_APP_SERVER_TOKEN (+ model path below)
 docker compose up -d
 curl http://127.0.0.1:4500/readyz   # App Server (letta-code image)
 curl http://127.0.0.1:6507/healthz  # MCP server
 ```
+
+Zero-cost path (no API keys): install Ollama on the host, `ollama pull
+qwen3`, then connect it once with `docker exec -it <app-server-container>
+letta connect ollama` pointed at `http://host.docker.internal:11434`, and
+pass that model in `agent_create`. Note weaker local models can behave
+unexpectedly as agent drivers — prefer a tool-capable one. Paid path: set
+`ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env` instead.
 
 `docker-compose.yml` runs the App Server straight from the prebuilt
 `ghcr.io/letta-ai/letta-code` image (same `letta server` startup as the
