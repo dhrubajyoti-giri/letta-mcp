@@ -1,9 +1,48 @@
+# Complete stack: Letta App Server (letta-code image, :4500) + this MCP server (:6507).
+# The App Server image is built straight from the official deploy repo —
+# no separate clone needed (Compose pulls the git URL as build context).
+#
+# Quick start:
+#   cp .env.example .env   # set LETTA_APP_SERVER_TOKEN + a model key
+#   cp agents.json.example agents.json   # optional
+#   docker compose up --build -d
+#   curl http://127.0.0.1:4500/readyz          # App Server
+#   curl http://127.0.0.1:6507/healthz         # MCP server
 services:
+  app-server:
+    build: https://github.com/letta-ai/letta-app-server-deploy.git
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - LETTA_BACKEND=${LETTA_BACKEND:-local}
+      - PORT=${APP_SERVER_PORT:-4500}
+    ports:
+      - "${APP_SERVER_PORT:-4500}:${APP_SERVER_PORT:-4500}"
+    volumes:
+      - letta-state:/root/.letta
+      - letta-workspace:/workspace
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${APP_SERVER_PORT:-4500}/readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   mcp:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      # Talk to the App Server over the compose network (same port as PORT above).
+      - LETTA_APP_SERVER_URL=http://app-server:${APP_SERVER_PORT:-4500}
     ports:
       - "${MCP_PORT:-6507}:6507"
     volumes:
       - ./agents.json:/app/agents.json:ro
+    depends_on:
+      app-server:
+        condition: service_healthy
+
+volumes:
+  letta-state:
+  letta-workspace:
