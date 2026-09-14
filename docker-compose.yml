@@ -12,11 +12,8 @@ services:
     image: ghcr.io/letta-ai/letta-code:${LETTA_CODE_VERSION:-latest}
     restart: unless-stopped
     env_file: .env
-    environment:
-      - LETTA_BACKEND=${LETTA_BACKEND:-local}
-      - PORT=${APP_SERVER_PORT:-4500}
     ports:
-      - "${APP_SERVER_PORT:-4500}:${APP_SERVER_PORT:-4500}"
+      - "${APP_SERVER_PORT:-4500}:4500"
     volumes:
       - letta-state:/root/.letta
       - letta-workspace:/workspace
@@ -26,16 +23,14 @@ services:
       - -c
       - |
         set -eu
-        test "$${LETTA_APP_SERVER_TOKEN:-}" || { echo "Set LETTA_APP_SERVER_TOKEN in .env (openssl rand -hex 32)." >&2; exit 1; }
-        port="$${PORT:-4500}"
         umask 077
         printf '%s' "$$LETTA_APP_SERVER_TOKEN" > /tmp/letta-app-server-token
         exec letta server --backend "$${LETTA_BACKEND:-local}" \
-          --listen "ws://0.0.0.0:$$port" \
+          --listen "ws://0.0.0.0:4500" \
           --ws-auth capability-token \
           --ws-token-file /tmp/letta-app-server-token
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:${APP_SERVER_PORT:-4500}/readyz"]
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:4500/readyz"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -46,8 +41,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      # Talk to the App Server over the compose network (same port as PORT above).
-      - LETTA_APP_SERVER_URL=http://app-server:${APP_SERVER_PORT:-4500}
+      - LETTA_APP_SERVER_URL=http://app-server:4500
     ports:
       - "${MCP_PORT:-6507}:6507"
     depends_on:
