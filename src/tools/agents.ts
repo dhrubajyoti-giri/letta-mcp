@@ -26,17 +26,19 @@ export function registerAgentTools(server: McpServer): void {
       name: z.string().optional(),
       description: z.string().optional(),
       model: z.string().optional().describe("Model id. Defaults to DEFAULT_MODEL (server default when empty)."),
+      embedding: z.string().optional().describe("Embedding handle. Defaults to DEFAULT_EMBEDDING (server default when empty)."),
       tags: z.array(z.string()).optional(),
     },
     async (args: any) => {
       try {
         const c = await getClient();
         const agent = await c.createAgent({
-          persona: args.persona ?? config.defaultPersona,
+          ...(args.persona ?? config.defaultPersona ? { persona: args.persona ?? config.defaultPersona } : {}),
           ...(args.human ?? config.defaultHuman ? { human: args.human ?? config.defaultHuman } : {}),
           ...(args.name ? { name: args.name } : {}),
           ...(args.description ? { description: args.description } : {}),
           ...(args.model ?? config.defaultModel ? { model: args.model ?? config.defaultModel } : {}),
+          ...(args.embedding ?? config.defaultEmbedding ? { embedding: args.embedding ?? config.defaultEmbedding } : {}),
           ...(args.tags ? { tags: args.tags } : {}),
         });
         const id = typeof agent === "string" ? agent : agent?.id ?? agent;
@@ -69,6 +71,20 @@ export function registerAgentTools(server: McpServer): void {
       try {
         const c = await getClient();
         return ok(await c.agents.list());
+      } catch (e) {
+        return fail("bridge_error", (e as Error).message);
+      }
+    },
+  );
+
+  server.tool(
+    "models_list",
+    "List the LLM model catalog available on the App Server (no session needed). Embedding handles have no catalog endpoint and are set via DEFAULT_EMBEDDING.",
+    {},
+    async () => {
+      try {
+        const c = await getClient();
+        return ok(await c.models.list());
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -125,13 +141,22 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "bridge_health",
-    "Check App Server connectivity (no secrets leaked).",
+    "Check App Server connectivity (no secrets leaked). Also reports whether the model catalog is reachable.",
     {},
     async () => {
-      return ok({
+      const base = {
         bridge_configured: isBridgeConfigured(),
         letta_url: config.lettaUrl || null,
-      });
+      };
+      if (!isBridgeConfigured()) return ok({ ...base, models_reachable: false });
+      try {
+        const c = await getClient();
+        const catalog = await c.models.list();
+        const count = Array.isArray((catalog as any)?.entries) ? (catalog as any).entries.length : null;
+        return ok({ ...base, models_reachable: true, model_count: count });
+      } catch (e) {
+        return ok({ ...base, models_reachable: false, models_error: (e as Error).message });
+      }
     },
   );
 }

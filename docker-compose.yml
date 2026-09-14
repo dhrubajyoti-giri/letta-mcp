@@ -51,6 +51,20 @@ services:
       app-server:
         condition: service_healthy
 
+  # Optional local embeddings (free, private). Opt in with:
+  #   docker compose --profile local-embeddings up -d
+  # then: docker exec ollama ollama pull <model>
+  # and set OLLAMA_BASE_URL=http://ollama:11434/v1 in .env so the
+  # App Server can reach it. Pair with DEFAULT_EMBEDDING=ollama/<model>.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-embeddings"]
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    command: serve
+
 volumes:
   letta-state:
   letta-workspace:
+  ollama-data:

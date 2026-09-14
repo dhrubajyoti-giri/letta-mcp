@@ -3,10 +3,10 @@
 Granular MCP server (Streamable HTTP) for the **Letta App Server** (`:4500`).
 Letta is the single source of truth for memory — no local fallback.
 
-## Tools (11)
+## Tools (12)
 
 Agents: `agent_create`, `agent_get`, `agent_list`, `agent_update`,
-`agent_delete` (requires `confirm:true`), `bridge_health`.
+`agent_delete` (requires `confirm:true`), `models_list`, `bridge_health`.
 
 Memory: `memory_save`, `memory_search`, `memory_get`,
 `memory_update_block`, `memory_delete`.
@@ -38,8 +38,18 @@ unexpectedly as agent drivers — prefer a tool-capable one. Paid path: set
 `ghcr.io/letta-ai/letta-code` image (same `letta server` startup as the
 official `letta-app-server-deploy` repo) alongside this MCP, on a shared
 network with persistent `letta-state` / `letta-workspace` volumes. Pin it
-with `LETTA_CODE_VERSION`. All ports, tokens, and limits come from `.env`
-— see `.env.example`.
+with `LETTA_CODE_VERSION` (kept compatible with
+`@letta-ai/letta-agent-sdk` in `package.json`). All ports, tokens, and
+limits come from `.env` — see `.env.example`.
+
+`agent_create` accepts optional `model` / `embedding` handles, falling back
+to `DEFAULT_MODEL` / `DEFAULT_EMBEDDING` (all empty by default — the server
+decides when omitted). `models_list` shows the LLM catalog; embeddings have
+no catalog endpoint, so set `DEFAULT_EMBEDDING` to a provider-qualified
+handle. For free local embeddings: `docker compose --profile
+local-embeddings up -d`, `docker exec ollama ollama pull
+qwen3-embedding:0.6b`, then `OLLAMA_BASE_URL=http://ollama:11434/v1` plus
+`DEFAULT_EMBEDDING=ollama/qwen3-embedding:0.6b` in `.env`.
 
 `SESSION_CWD=/workspace` is the directory sessions work in — a persistent
 volume where the agent reads/writes files during turns.
