@@ -28,6 +28,7 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
     given.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
   if (!ok) {
+    res.set("WWW-Authenticate", "Bearer");
     res.status(401).json({ error: "unauthorized" });
     return;
   }
