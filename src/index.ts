@@ -32,6 +32,12 @@ function requireAuth(req: Request, res: Response, next: NextFunction): void {
     given.length === expected.length &&
     crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
   if (!ok) {
+    const raw = req.header("authorization") ?? "";
+    console.warn(
+      `mcp auth rejected: header_present=${raw.length > 0} ` +
+        `header_len=${raw.length} token_len=${given.length} ` +
+        `expected_len=${expected.length}`,
+    );
     res.set("WWW-Authenticate", "Bearer");
     res.status(401).json({ error: "unauthorized" });
     return;
@@ -49,6 +55,7 @@ async function main(): Promise<void> {
   app.post("/mcp", requireAuth, handleMcp);
   app.get("/mcp", requireAuth, handleMcp);
   app.delete("/mcp", requireAuth, handleMcp);
+  app.get("/healthz", (_req: Request, res: Response) => res.json({ ok: true }));
   app.listen(config.mcpPort, config.mcpHost, () => {
     console.log(`letta-appserver-mcp listening on ${config.mcpHost}:${config.mcpPort}/mcp`);
   });
