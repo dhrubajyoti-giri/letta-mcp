@@ -16,6 +16,7 @@ function num(name: string, def: number): number {
 export const config = {
   mcpHost: str("MCP_HOST", "0.0.0.0"),
   mcpPort: num("MCP_PORT", 6507),
+  mcpAuthToken: str("MCP_AUTH_TOKEN", ""),
   lettaUrl: str("LETTA_APP_SERVER_URL", ""),
   lettaToken: str("LETTA_APP_SERVER_TOKEN", ""),
   sessionCwd: str("SESSION_CWD", "/workspace"),
