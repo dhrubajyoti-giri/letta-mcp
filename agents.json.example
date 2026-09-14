@@ -1,6 +1,0 @@
-{
-  "default": "agent-REPLACE-ME",
-  "projects": {
-    "my-project": "agent-REPLACE-WITH-PROJECT-AGENT"
-  }
-}
