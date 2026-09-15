@@ -30,11 +30,20 @@ export async function getClient(): Promise<any> {
 
 async function collectStream(session: any): Promise<string> {
   let out = "";
+  const problems: string[] = [];
   for await (const m of session.stream()) {
     const t = String((m as any).type ?? "");
     if (t === "assistant") out += String((m as any).content ?? "");
     else if (t === "result" && (m as any).content) out += String((m as any).content);
+    else if (t === "error" || t === "exception" || t === "failed" || t === "failure") {
+      const msg =
+        (m as any).error ?? (m as any).message ?? (m as any).content ?? JSON.stringify(m).slice(0, 500);
+      problems.push(`${t}: ${msg}`);
+    }
     if (out.length >= config.streamMaxChars) break;
+  }
+  if (!out && problems.length > 0) {
+    throw new Error(`turn produced no reply (${problems.join(" | ").slice(0, 1000)})`);
   }
   return out;
 }
