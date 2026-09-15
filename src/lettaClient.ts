@@ -69,10 +69,44 @@ export async function withSession<T>(
   }
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Best-effort parse of provider retry hints ("retry in 38.79s",
+// "Please retry in 39s", "retry_after": 39). Falls back to 20s.
+function retryDelayMs(message: string): number {
+  const m = /retry in ([\d.]+)\s*s/i.exec(message);
+  if (m) return Math.min(Math.ceil(parseFloat(m[1]) * 1000) + 2000, 65000);
+  return 20000;
+}
+
+function isRateLimit(e: unknown): boolean {
+  const s = e instanceof Error ? `${e.name} ${e.message}` : String(e);
+  return /429|rate.?limit|RESOURCE_EXHAUSTED|quota exceeded/i.test(s);
+}
+
 /** Send one turn and collect the assistant's reply text. */
 export async function sendTurn(agentId: string, message: string, conversationId?: string): Promise<string> {
-  return withSession(agentId, conversationId, async (session) => {
-    await session.send(message);
-    return collectStream(session);
-  });
+  // Free-tier pools throttle under burst load; retry rate limits twice
+  // with the provider's own backoff hint instead of failing loudly.
+  // Each attempt opens a fresh session, so a throttled send is never
+  // half-applied to a reused conversation.
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await withSession(agentId, conversationId, async (session) => {
+        await session.send(message);
+        return collectStream(session);
+      });
+    } catch (e) {
+      lastError = e;
+      if (attempt < 3 && isRateLimit(e)) {
+        await sleep(retryDelayMs(e instanceof Error ? e.message : String(e)));
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError;
 }
