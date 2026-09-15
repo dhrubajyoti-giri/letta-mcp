@@ -1,5 +1,5 @@
 {
-  "_comment": "Per-agent model/embedding mapping, keyed by agent NAME as passed to agent_create. The MCP applies these when the call omits model/embedding; explicit args always win. DEFAULT_MODEL / DEFAULT_EMBEDDING apply when neither is set. Live agents carry stored models — flipping those needs agent_update + turn verification, not just this file. Edit freely, then recreate the MCP container (or restart the process).",
+  "_comment": "Per-agent model/embedding mapping, keyed by agent NAME as passed to agent_create. The MCP applies these when the call omits model/embedding; explicit args always win. Live agents carry stored models — flipping those needs agent_update + turn verification, not just this file. Verified live 2026-09-15. Edit freely, then recreate the MCP container (or restart the process).",
   "coding": {
     "embedding": "ollama/qwen3-embedding:0.6b",
     "model": "openrouter/cohere/north-mini-code:free"
@@ -14,6 +14,6 @@
   },
   "study": {
     "embedding": "ollama/qwen3-embedding:0.6b",
-    "model": "google_ai/gemini-2.5-flash"
+    "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
   }
 }
