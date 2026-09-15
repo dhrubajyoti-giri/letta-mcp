@@ -83,6 +83,31 @@ export function registerAgentTools(server: McpServer): void {
   );
 
   server.tool(
+    "agent_lookup",
+    "Resolve agent names to ids (compact: id, name, model, tags only). No arguments = list all. New sessions call this first to bootstrap agent_ids.",
+    { name: z.string().optional().describe("Case-insensitive substring match on agent name. Omit to list all.") },
+    async (args: any) => {
+      try {
+        const c = await getClient();
+        const list = await c.agents.list();
+        const arr: any[] = Array.isArray(list) ? list : (list as any)?.agents ?? [];
+        const q = typeof args.name === "string" ? args.name.toLowerCase() : null;
+        const out = arr
+          .filter((a) => !q || String(a?.name ?? "").toLowerCase().includes(q))
+          .map((a) => ({
+            agent_id: a?.id ?? a?.agent_id ?? null,
+            name: a?.name ?? null,
+            model: a?.model ?? a?.llm_config?.model ?? null,
+            tags: a?.tags ?? [],
+          }));
+        return ok(out);
+      } catch (e) {
+        return fail("bridge_error", (e as Error).message);
+      }
+    },
+  );
+
+  server.tool(
     "models_list",
     "List the LLM model catalog available on the App Server (no session needed). Embedding handles have no catalog endpoint and are set via DEFAULT_EMBEDDING.",
     {},

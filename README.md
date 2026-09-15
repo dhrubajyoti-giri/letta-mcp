@@ -3,10 +3,11 @@
 Granular MCP server (Streamable HTTP) for the **Letta App Server** (`:4500`).
 Letta is the single source of truth for memory — no local fallback.
 
-## Tools (12)
+## Tools (13)
 
-Agents: `agent_create`, `agent_get`, `agent_list`, `agent_update`,
-`agent_delete` (requires `confirm:true`), `models_list`, `bridge_health`.
+Agents: `agent_create`, `agent_get`, `agent_list`, `agent_lookup`,
+`agent_update`, `agent_delete` (requires `confirm:true`), `models_list`,
+`bridge_health`.
 
 Memory: `memory_save`, `memory_search`, `memory_get`,
 `memory_update_block`, `memory_delete`.
@@ -14,6 +15,10 @@ Memory: `memory_save`, `memory_search`, `memory_get`,
 Every tool that acts on an agent takes a required `agent_id` — the MCP
 keeps no default agent. Which project uses which agent is decided per
 request by the caller; one project may use many agents.
+
+New sessions bootstrap ids via `agent_lookup` (compact id/name/model —
+no system-prompt dump; optional name filter). `block-registry.json` in
+backups is the offline id record.
 
 `config/agent-models.json` maps agent **names** to `model` / `embedding`
 handles, applied by `agent_create` when the call omits them (explicit args
