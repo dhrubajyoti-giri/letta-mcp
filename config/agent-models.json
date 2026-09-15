@@ -10,7 +10,7 @@
   },
   "investment": {
     "embedding": "ollama/qwen3-embedding:0.6b",
-    "model": "openrouter/nvidia/nemotron-3.5-lightning:free"
+    "model": "openrouter/inclusionai/ling-3.0-flash-fin:free"
   },
   "study": {
     "embedding": "ollama/qwen3-embedding:0.6b",
