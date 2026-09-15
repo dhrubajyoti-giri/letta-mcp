@@ -10,10 +10,11 @@
   },
   "investment": {
     "embedding": "ollama/qwen3-embedding:0.6b",
-    "model": "google_ai/gemini-2.5-flash"
+    "model": "openrouter/nvidia/nemotron-3.5-lightning:free"
   },
   "study": {
     "embedding": "ollama/qwen3-embedding:0.6b",
     "model": "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
   }
+}
 }
