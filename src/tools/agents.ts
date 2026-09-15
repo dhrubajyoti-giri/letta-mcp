@@ -3,7 +3,7 @@
 // an existing agent takes a required agent_id straight from the request.
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { config } from "../config.js";
+import { config, agentDefaults } from "../config.js";
 import { getClient, isBridgeConfigured } from "../lettaClient.js";
 
 const ok = (data: unknown) => ({
@@ -32,13 +32,18 @@ export function registerAgentTools(server: McpServer): void {
     async (args: any) => {
       try {
         const c = await getClient();
+        // Model/embedding resolution: explicit arg → agent-models.json
+        // entry for args.name → DEFAULT_* env. Mapping file is optional.
+        const mapped = agentDefaults(args.name);
+        const model = args.model ?? mapped?.model ?? config.defaultModel;
+        const embedding = args.embedding ?? mapped?.embedding ?? config.defaultEmbedding;
         const agent = await c.createAgent({
           ...(args.persona ?? config.defaultPersona ? { persona: args.persona ?? config.defaultPersona } : {}),
           ...(args.human ?? config.defaultHuman ? { human: args.human ?? config.defaultHuman } : {}),
           ...(args.name ? { name: args.name } : {}),
           ...(args.description ? { description: args.description } : {}),
-          ...(args.model ?? config.defaultModel ? { model: args.model ?? config.defaultModel } : {}),
-          ...(args.embedding ?? config.defaultEmbedding ? { embedding: args.embedding ?? config.defaultEmbedding } : {}),
+          ...(model ? { model } : {}),
+          ...(embedding ? { embedding } : {}),
           ...(args.tags ? { tags: args.tags } : {}),
         });
         const id = typeof agent === "string" ? agent : agent?.id ?? agent;

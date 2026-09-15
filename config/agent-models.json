@@ -1,0 +1,19 @@
+{
+  "_comment": "Per-agent model/embedding mapping, keyed by agent NAME as passed to agent_create. The MCP applies these when the call omits model/embedding; explicit args always win. DEFAULT_MODEL / DEFAULT_EMBEDDING apply when neither is set. Edit freely, then recreate the MCP container (or restart the process).",
+  "coding": {
+    "embedding": "ollama/qwen3-embedding:0.6b",
+    "model": "openrouter/poolside/laguna-s-2.1:free"
+  },
+  "dhruba": {
+    "embedding": "ollama/qwen3-embedding:0.6b",
+    "model": "openrouter/poolside/laguna-s-2.1:free"
+  },
+  "investment": {
+    "embedding": "ollama/qwen3-embedding:0.6b",
+    "model": "openrouter/poolside/laguna-s-2.1:free"
+  },
+  "study": {
+    "embedding": "ollama/qwen3-embedding:0.6b",
+    "model": "openrouter/poolside/laguna-s-2.1:free"
+  }
+}

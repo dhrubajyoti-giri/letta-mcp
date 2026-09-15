@@ -12,8 +12,14 @@ Memory: `memory_save`, `memory_search`, `memory_get`,
 `memory_update_block`, `memory_delete`.
 
 Every tool that acts on an agent takes a required `agent_id` — the MCP
-keeps no project mapping and no default agent. Which project uses which
-agent is decided per request by the caller; one project may use many agents.
+keeps no default agent. Which project uses which agent is decided per
+request by the caller; one project may use many agents.
+
+`config/agent-models.json` maps agent **names** to `model` / `embedding`
+handles, applied by `agent_create` when the call omits them (explicit args
+always win; `DEFAULT_MODEL` / `DEFAULT_EMBEDDING` fill the rest). Edit the
+file and recreate the container — no rebuild needed. Override its location
+with `AGENT_MODELS_FILE`.
 
 All responses are a strict envelope:
 `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
