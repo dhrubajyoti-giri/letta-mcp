@@ -5,6 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config } from "../config.js";
 import { getClient, withSession, sendTurn } from "../lettaClient.js";
+import { resolveAgentRef } from "../resolve.js";
 
 const ok = (data: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify({ ok: true, data }) }],
@@ -14,7 +15,10 @@ const fail = (code: string, message: string) => ({
   isError: true as const,
 });
 
-const agentId = z.string().min(1).describe("Agent id to act on.");
+const agentId = z
+  .string()
+  .min(1)
+  .describe("Agent id or name (names resolve live; unambiguous match required).");
 
 export function registerMemoryTools(server: McpServer): void {
   server.tool(
@@ -27,9 +31,10 @@ export function registerMemoryTools(server: McpServer): void {
     },
     async (args: any) => {
       try {
+        const r = await resolveAgentRef(args.agent_id);
         const tags = args.tags?.length ? ` (tags: ${args.tags.join(", ")})` : "";
-        const reply = await sendTurn(args.agent_id, `Remember this long-term fact${tags}: ${args.text}`);
-        return ok({ saved: true, agent_id: args.agent_id, tags: args.tags ?? [], detail: reply });
+        const reply = await sendTurn(r.agent_id, `Remember this long-term fact${tags}: ${args.text}`);
+        return ok({ saved: true, agent_id: r.agent_id, agent_name: r.agent_name, tags: args.tags ?? [], detail: reply });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -46,12 +51,13 @@ export function registerMemoryTools(server: McpServer): void {
     },
     async (args: any) => {
       try {
+        const r = await resolveAgentRef(args.agent_id);
         const topK = args.top_k ?? config.defaultTopK;
         const reply = await sendTurn(
-          args.agent_id,
+          r.agent_id,
           `Search your long-term memory and answer concisely (consider at most ${topK} relevant items): ${args.query}`,
         );
-        return ok({ agent_id: args.agent_id, query: args.query, top_k: topK, answer: reply });
+        return ok({ agent_id: r.agent_id, agent_name: r.agent_name, query: args.query, top_k: topK, answer: reply });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -64,16 +70,17 @@ export function registerMemoryTools(server: McpServer): void {
     { agent_id: agentId },
     async (args: any) => {
       try {
+        const r = await resolveAgentRef(args.agent_id);
         const c = await getClient();
         // Prefer a direct read; fall back to asking the agent.
         try {
-          const agent = await c.agents.retrieve(args.agent_id);
+          const agent = r.agent ?? (await c.agents.retrieve(r.agent_id));
           const blocks = (agent as any)?.memory ?? (agent as any)?.memory_blocks ?? (agent as any)?.blocks;
-          if (blocks) return ok({ agent_id: args.agent_id, blocks });
+          if (blocks) return ok({ agent_id: r.agent_id, agent_name: r.agent_name, blocks });
         } catch {
           /* fall through to session read */
         }
-        const detail = await withSession(args.agent_id, undefined, async (session) => {
+        const detail = await withSession(r.agent_id, undefined, async (session) => {
           if (typeof session.bootstrapState === "function") {
             const state = await session.bootstrapState();
             if ((state as any)?.memory) return state;
@@ -86,7 +93,7 @@ export function registerMemoryTools(server: McpServer): void {
           }
           return { raw: out };
         });
-        return ok({ agent_id: args.agent_id, ...(typeof detail === "object" ? detail : { raw: detail }) });
+        return ok({ agent_id: r.agent_id, agent_name: r.agent_name, ...(typeof detail === "object" ? detail : { raw: detail }) });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -103,11 +110,12 @@ export function registerMemoryTools(server: McpServer): void {
     },
     async (args: any) => {
       try {
+        const r = await resolveAgentRef(args.agent_id);
         const reply = await sendTurn(
-          args.agent_id,
+          r.agent_id,
           `Update your core memory block [${args.label}] to exactly: ${args.value}`,
         );
-        return ok({ updated: true, agent_id: args.agent_id, label: args.label, detail: reply });
+        return ok({ updated: true, agent_id: r.agent_id, agent_name: r.agent_name, label: args.label, detail: reply });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -123,11 +131,12 @@ export function registerMemoryTools(server: McpServer): void {
     },
     async (args: any) => {
       try {
+        const r = await resolveAgentRef(args.agent_id);
         const reply = await sendTurn(
-          args.agent_id,
+          r.agent_id,
           `Delete this from your long-term memory: ${args.id}. Confirm what was removed.`,
         );
-        return ok({ deleted: true, agent_id: args.agent_id, ref: args.id, detail: reply });
+        return ok({ deleted: true, agent_id: r.agent_id, agent_name: r.agent_name, ref: args.id, detail: reply });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }

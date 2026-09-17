@@ -4,6 +4,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { config, agentDefaults } from "../config.js";
+import { resolveAgentRef } from "../resolve.js";
 import { getClient, isBridgeConfigured } from "../lettaClient.js";
 
 const ok = (data: unknown) => ({
@@ -14,7 +15,10 @@ const fail = (code: string, message: string) => ({
   isError: true as const,
 });
 
-const agentId = z.string().min(1).describe("Agent id to act on.");
+const agentId = z
+  .string()
+  .min(1)
+  .describe("Agent id or name (names resolve live; unambiguous match required).");
 
 export function registerAgentTools(server: McpServer): void {
   server.tool(
@@ -47,7 +51,7 @@ export function registerAgentTools(server: McpServer): void {
           ...(args.tags ? { tags: args.tags } : {}),
         });
         const id = typeof agent === "string" ? agent : agent?.id ?? agent;
-        return ok({ agent_id: id, agent });
+        return ok({ agent_id: id, agent_name: args.name ?? null, agent });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -60,8 +64,9 @@ export function registerAgentTools(server: McpServer): void {
     { agent_id: agentId },
     async (args: any) => {
       try {
-        const c = await getClient();
-        return ok(await c.agents.retrieve(args.agent_id));
+        const r = await resolveAgentRef(args.agent_id);
+        const a: any = r.agent ?? (await (await getClient()).agents.retrieve(r.agent_id));
+        return ok({ ...a, agent_name: r.agent_name });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -141,7 +146,13 @@ export function registerAgentTools(server: McpServer): void {
         }
         if (Object.keys(patch).length === 0) return fail("invalid_request", "Nothing to update: provide at least one field.");
         const c = await getClient();
-        return ok(await c.agents.update(args.agent_id, patch));
+        const r = await resolveAgentRef(args.agent_id);
+        const updated: any = await c.agents.update(r.agent_id, patch);
+        return ok(
+          typeof updated === "object" && updated !== null
+            ? { ...updated, agent_name: r.agent_name }
+            : { result: updated, agent_name: r.agent_name },
+        );
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -161,8 +172,9 @@ export function registerAgentTools(server: McpServer): void {
       }
       try {
         const c = await getClient();
-        await c.agents.delete(args.agent_id);
-        return ok({ deleted: true, agent_id: args.agent_id });
+        const r = await resolveAgentRef(args.agent_id);
+        await c.agents.delete(r.agent_id);
+        return ok({ deleted: true, agent_id: r.agent_id, agent_name: r.agent_name });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }

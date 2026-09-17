@@ -16,6 +16,10 @@ Every tool that acts on an agent takes a required `agent_id` — the MCP
 keeps no default agent. Which project uses which agent is decided per
 request by the caller; one project may use many agents.
 
+Every `agent_id` parameter accepts an id **or a name** (`"dhruba"` works;
+exact match preferred, substring fallback, errors on miss/ambiguity), and
+every response echoes `agent_name` next to `agent_id`.
+
 New sessions bootstrap ids via `agent_lookup` (compact id/name/model —
 no system-prompt dump; optional name filter). `block-registry.json` in
 backups is the offline id record.

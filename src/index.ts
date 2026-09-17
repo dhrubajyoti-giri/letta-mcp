@@ -7,7 +7,7 @@ import { registerAgentTools } from "./tools/agents.js";
 import { registerMemoryTools } from "./tools/memory.js";
 
 function buildServer(): McpServer {
-  const server = new McpServer({ name: "letta-appserver-mcp", version: "0.3.0" });
+  const server = new McpServer({ name: "letta-appserver-mcp", version: "0.4.0" });
   registerAgentTools(server);
   registerMemoryTools(server);
   return server;
