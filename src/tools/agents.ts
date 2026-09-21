@@ -23,7 +23,7 @@ const agentId = z
 export function registerAgentTools(server: McpServer): void {
   server.tool(
     "agent_create",
-    "Create a new Letta agent with persona/human memory and return its id.",
+    "Create a new Letta agent with persona/human memory and return its id. Request: {persona?, human?, name?, description?, model?, embedding?, tags?} (all optional; model/embedding fall back to agent-models.json then DEFAULT_*). Response {ok:true, data:{agent_id, agent_name, agent}}.",
     {
       persona: z.string().optional().describe("Agent persona. Defaults to DEFAULT_PERSONA."),
       human: z.string().optional().describe("Human/user context. Defaults to DEFAULT_HUMAN."),
@@ -60,7 +60,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_get",
-    "Get a single agent by id.",
+    "Get a single agent by id. Request: {agent_id (id or name)}. Response {ok:true, data:{…agent, agent_name}}.",
     { agent_id: agentId },
     async (args: any) => {
       try {
@@ -75,12 +75,24 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_list",
-    "List agents on the App Server.",
-    {},
-    async () => {
+    "List agents on the App Server. Request: {query?, name?, tags?, limit?, order?} (all optional filters). Response {ok:true, data:[…agents]}.",
+    {
+      query: z.string().optional().describe("Substring search on agent names."),
+      name: z.string().optional().describe("Match one exact agent name."),
+      tags: z.array(z.string()).optional().describe("Only agents carrying these tags."),
+      limit: z.number().int().min(1).max(100).optional().describe("Max agents to return."),
+      order: z.enum(["asc", "desc"]).optional().describe("Sort order."),
+    },
+    async (args: any) => {
       try {
         const c = await getClient();
-        return ok(await c.agents.list());
+        const query: Record<string, unknown> = {};
+        if (args.query !== undefined) query.query = args.query;
+        if (args.name !== undefined) query.name = args.name;
+        if (args.tags !== undefined) query.tags = args.tags;
+        if (args.limit !== undefined) query.limit = args.limit;
+        if (args.order !== undefined) query.order = args.order;
+        return ok(await c.agents.list(query));
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
       }
@@ -89,7 +101,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_lookup",
-    "Resolve agent names to ids (compact: id, name, model, tags only). No arguments = list all. New sessions call this first to bootstrap agent_ids.",
+    "Resolve agent names to ids (compact: id, name, model, tags only). Request: {name?} (omit = list all; case-insensitive substring). Response {ok:true, data:[{agent_id, name, model, tags}]}. New sessions call this first to bootstrap agent_ids.",
     { name: z.string().optional().describe("Case-insensitive substring match on agent name. Omit to list all.") },
     async (args: any) => {
       try {
@@ -114,7 +126,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "models_list",
-    "List the LLM model catalog available on the App Server (no session needed). Embedding handles have no catalog endpoint and are set via DEFAULT_EMBEDDING.",
+    "List the LLM model catalog available on the App Server (no session needed). Request: {}. Response {ok:true, data:{…catalog}}. Embedding handles have no catalog endpoint and are set via DEFAULT_EMBEDDING.",
     {},
     async () => {
       try {
@@ -128,7 +140,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_update",
-    "Update an agent's editable fields (persona, human, name, description, model, tags). Only provided fields change.",
+    "Update an agent's editable fields. Request: {agent_id, persona?, human?, name?, description?, model?, system?, model_settings?, context_window_limit?, hidden?, tags?} (at least one field). Response {ok:true, data:{…agent, agent_name}}. Only provided fields change.",
     {
       agent_id: agentId,
       persona: z.string().optional(),
@@ -136,12 +148,16 @@ export function registerAgentTools(server: McpServer): void {
       name: z.string().optional(),
       description: z.string().optional(),
       model: z.string().optional(),
+      system: z.string().optional().describe("System prompt override."),
+      model_settings: z.record(z.unknown()).optional().describe("Provider model settings."),
+      context_window_limit: z.number().int().min(1).optional().describe("Context window limit override."),
+      hidden: z.boolean().optional().describe("Hide the agent from default listings."),
       tags: z.array(z.string()).optional(),
     },
     async (args: any) => {
       try {
         const patch: Record<string, unknown> = {};
-        for (const k of ["persona", "human", "name", "description", "model", "tags"]) {
+        for (const k of ["persona", "human", "name", "description", "model", "system", "model_settings", "context_window_limit", "hidden", "tags"]) {
           if (args[k] !== undefined) patch[k] = args[k];
         }
         if (Object.keys(patch).length === 0) return fail("invalid_request", "Nothing to update: provide at least one field.");
@@ -161,7 +177,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_delete",
-    "Delete an agent. Requires confirm:true — the calling agent must ask the user explicitly first.",
+    "Delete an agent. Request: {agent_id, confirm:true}. Response {ok:true, data:{deleted, agent_id, agent_name}}. Requires confirm:true — the calling agent must ask the user explicitly first.",
     {
       agent_id: agentId,
       confirm: z.boolean().describe("Must be true. Deletes are irreversible."),
@@ -183,7 +199,7 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "bridge_health",
-    "Check App Server connectivity (no secrets leaked). Also reports whether the model catalog is reachable.",
+    "Check App Server connectivity (no secrets leaked). Request: {}. Response {ok:true, data:{bridge_configured, letta_url, models_reachable, model_count?}}. Also reports whether the model catalog is reachable.",
     {},
     async () => {
       const base = {

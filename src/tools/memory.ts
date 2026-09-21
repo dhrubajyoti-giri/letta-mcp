@@ -23,7 +23,7 @@ const agentId = z
 export function registerMemoryTools(server: McpServer): void {
   server.tool(
     "memory_save",
-    "Save a long-term fact to the agent's memory. Returns what the agent stored.",
+    "Save a long-term fact to the agent's memory. Request: {agent_id, text, tags?}. Response {ok:true, data:{saved, agent_id, agent_name, tags, detail}}. Tags are prompt-routed as '(tags: …)', not stored fields. Files the fact via a turn; the agent owns block placement.",
     {
       agent_id: agentId,
       text: z.string().min(1).describe("The fact to remember."),
@@ -43,7 +43,7 @@ export function registerMemoryTools(server: McpServer): void {
 
   server.tool(
     "memory_search",
-    "Search the agent's long-term memory and get a concise answer.",
+    "Search the agent's long-term memory and get a concise answer. Request: {agent_id, query, top_k? (default DEFAULT_TOP_K)}. Response {ok:true, data:{agent_id, agent_name, query, top_k, answer}}. Retrieval only — reasoning happens client-side. Files nothing.",
     {
       agent_id: agentId,
       query: z.string().min(1).describe("What to recall."),
@@ -66,7 +66,7 @@ export function registerMemoryTools(server: McpServer): void {
 
   server.tool(
     "memory_get",
-    "Get the agent's core memory blocks (persona, human, custom).",
+    "Get the agent's core memory blocks (persona, human, custom). Request: {agent_id}. Response {ok:true, data:{agent_id, agent_name, blocks}}. Read-only projection: direct agents.retrieve read first, session bootstrapState fallback. Truncated at STREAM_MAX_CHARS on the fallback path.",
     { agent_id: agentId },
     async (args: any) => {
       try {
@@ -102,7 +102,7 @@ export function registerMemoryTools(server: McpServer): void {
 
   server.tool(
     "memory_update_block",
-    "Update one core memory block (e.g. label 'human') on the agent.",
+    "Update one core memory block (e.g. label 'human') on the agent. Request: {agent_id, label, value}. Response {ok:true, data:{updated, agent_id, agent_name, label, detail}}. Semantic set via a turn — the agent interprets and applies it, not a row write.",
     {
       agent_id: agentId,
       label: z.string().min(1).describe("Block label, e.g. 'persona' or 'human'."),
@@ -124,7 +124,7 @@ export function registerMemoryTools(server: McpServer): void {
 
   server.tool(
     "memory_delete",
-    "Delete one item from the agent's long-term memory by describing it (id, label, or quoted text).",
+    "Delete one item from the agent's long-term memory by describing it (id, label, or quoted text). Request: {agent_id, id}. Response {ok:true, data:{deleted, agent_id, agent_name, ref, detail}}. Semantic removal via a turn, not a row delete.",
     {
       agent_id: agentId,
       id: z.string().min(1).describe("Memory item reference: id, block label, or identifying text."),

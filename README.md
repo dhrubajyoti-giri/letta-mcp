@@ -3,14 +3,48 @@
 Granular MCP server (Streamable HTTP) for the **Letta App Server** (`:4500`).
 Letta is the single source of truth for memory — no local fallback.
 
-## Tools (13)
+## Tools (14)
 
-Agents: `agent_create`, `agent_get`, `agent_list`, `agent_lookup`,
-`agent_update`, `agent_delete` (requires `confirm:true`), `models_list`,
-`bridge_health`.
+Agents: `agent_create`, `agent_get`, `agent_list` (optional
+`query`/`name`/`tags`/`limit`/`order` filters), `agent_lookup`,
+`agent_update` (optional `system`/`model_settings`/
+`context_window_limit`/`hidden` in addition to persona/human/name/
+description/model/tags), `agent_delete` (requires `confirm:true`),
+`models_list`, `bridge_health`.
 
-Memory: `memory_save`, `memory_search`, `memory_get`,
-`memory_update_block`, `memory_delete`.
+Memory: `memory_save`, `memory_search` (retrieval only — you reason over
+the answer), `memory_get`, `memory_update_block`, `memory_delete`.
+
+Session: `session_ask` — reason with the agent's memory and answer.
+One-shot turn, files nothing durable. Use for synthesis/advice/
+explanation; use `memory_search` for retrieval.
+
+### Request / response contracts
+
+Every tool takes a JSON object (see its schema) and returns a strict
+envelope: `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
+`agent_id` everywhere accepts an id **or** a name.
+
+| Tool | Request body | Response `data` |
+|---|---|---|
+| `agent_create` | `{persona?, human?, name?, description?, model?, embedding?, tags?}` | `{agent_id, agent_name, agent}` |
+| `agent_get` | `{agent_id}` | `{…agent, agent_name}` |
+| `agent_list` | `{query?, name?, tags?, limit?, order?}` | `[{…agent}]` |
+| `agent_lookup` | `{name?}` | `[{agent_id, name, model, tags}]` |
+| `agent_update` | `{agent_id, persona?, human?, name?, description?, model?, system?, model_settings?, context_window_limit?, hidden?, tags?}` | `{…agent, agent_name}` |
+| `agent_delete` | `{agent_id, confirm:true}` | `{deleted, agent_id, agent_name}` |
+| `models_list` | `{}` | catalog object |
+| `bridge_health` | `{}` | `{bridge_configured, letta_url, models_reachable, model_count?}` |
+| `memory_save` | `{agent_id, text, tags?}` | `{saved, agent_id, agent_name, tags, detail}` |
+| `memory_search` | `{agent_id, query, top_k?}` | `{agent_id, agent_name, query, top_k, answer}` |
+| `memory_get` | `{agent_id}` | `{agent_id, agent_name, blocks}` |
+| `memory_update_block` | `{agent_id, label, value}` | `{updated, agent_id, agent_name, label, detail}` |
+| `memory_delete` | `{agent_id, id}` | `{deleted, agent_id, agent_name, ref, detail}` |
+| `session_ask` | `{agent_id, message}` | `{agent_id, agent_name, reply}` |
+
+`memory_search` retrieves (you reason); `session_ask` reasons (it
+answers); `memory_save` files. Neither ask path instructs a durable
+write — "saves nothing" is a prompt contract, not a storage lock.
 
 Every tool that acts on an agent takes a required `agent_id` — the MCP
 keeps no default agent. Which project uses which agent is decided per
@@ -31,7 +65,8 @@ file and recreate the container — no rebuild needed. Override its location
 with `AGENT_MODELS_FILE`.
 
 All responses are a strict envelope:
-`{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
+`{ok:true, data:{…}}` or `{ok:false, error:{code, message}}` (see the
+table above for each tool's `data` shape).
 
 ## Setup — full stack (App Server + MCP, one command)
 
