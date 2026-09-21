@@ -1,6 +1,6 @@
 {
   "name": "letta-appserver-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Granular MCP tools for Letta App Server agents + memory (Streamable HTTP)",
   "type": "module",
   "scripts": {
