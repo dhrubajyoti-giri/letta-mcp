@@ -3,7 +3,7 @@
 // an existing agent takes a required agent_id straight from the request.
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { config, agentDefaults } from "../config.js";
+import { config } from "../config.js";
 import { resolveAgentRef } from "../resolve.js";
 import { getClient, isBridgeConfigured } from "../lettaClient.js";
 import { ok, fail } from "../respond.js";
@@ -16,7 +16,7 @@ const agentId = z
 export function registerAgentTools(server: McpServer): void {
   server.tool(
     "agent_create",
-    "Create a new Letta agent with persona/human memory and return its id. Request: {persona?, human?, name?, description?, model?, embedding?, tags?} (all optional; model/embedding fall back to agent-models.json then DEFAULT_*). Response {ok:true, data:{agent_id, agent_name, agent}}.",
+    "Create a new Letta agent with persona/human memory and return its id. Request: {persona?, human?, name?, description?, model?, embedding?, tags?} (all optional; model/embedding fall back to DEFAULT_MODEL/DEFAULT_EMBEDDING, server default when empty). Response {ok:true, data:{agent_id, agent_name, agent}}. Pass model explicitly — update it later via agent_update.",
     {
       persona: z.string().optional().describe("Agent persona. Defaults to DEFAULT_PERSONA."),
       human: z.string().optional().describe("Human/user context. Defaults to DEFAULT_HUMAN."),
@@ -29,11 +29,8 @@ export function registerAgentTools(server: McpServer): void {
     async (args: any) => {
       try {
         const c = await getClient();
-        // Model/embedding resolution: explicit arg → agent-models.json
-        // entry for args.name → DEFAULT_* env. Mapping file is optional.
-        const mapped = agentDefaults(args.name);
-        const model = args.model ?? mapped?.model ?? config.defaultModel;
-        const embedding = args.embedding ?? mapped?.embedding ?? config.defaultEmbedding;
+        const model = args.model ?? config.defaultModel;
+        const embedding = args.embedding ?? config.defaultEmbedding;
         const agent = await c.createAgent({
           ...(args.persona ?? config.defaultPersona ? { persona: args.persona ?? config.defaultPersona } : {}),
           ...(args.human ?? config.defaultHuman ? { human: args.human ?? config.defaultHuman } : {}),

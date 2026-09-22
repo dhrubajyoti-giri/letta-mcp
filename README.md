@@ -59,11 +59,10 @@ New sessions bootstrap ids via `agent_lookup` (compact id/name/model —
 no system-prompt dump; optional name filter). `block-registry.json` in
 backups is the offline id record.
 
-`config/agent-models.json` maps agent **names** to `model` / `embedding`
-handles, applied by `agent_create` when the call omits them (explicit args
-always win; `DEFAULT_MODEL` / `DEFAULT_EMBEDDING` fill the rest). Edit the
-file and recreate the container — no rebuild needed. Override its location
-with `AGENT_MODELS_FILE`.
+`agent_create` takes optional `model` / `embedding` handles, falling back
+to `DEFAULT_MODEL` / `DEFAULT_EMBEDDING` (all empty by default — the server
+decides when omitted). Pass them explicitly per call; change them later
+via `agent_update`.
 
 All responses are a strict envelope:
 `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}` (see the
