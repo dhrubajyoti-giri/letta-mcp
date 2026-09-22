@@ -6,14 +6,7 @@ import { z } from "zod";
 import { config, agentDefaults } from "../config.js";
 import { resolveAgentRef } from "../resolve.js";
 import { getClient, isBridgeConfigured } from "../lettaClient.js";
-
-const ok = (data: unknown) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: true, data }) }],
-});
-const fail = (code: string, message: string) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: { code, message } }) }],
-  isError: true as const,
-});
+import { ok, fail } from "../respond.js";
 
 const agentId = z
   .string()
@@ -75,12 +68,12 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_list",
-    "List agents on the App Server. Request: {query?, name?, tags?, limit?, order?} (all optional filters). Response {ok:true, data:[…agents]}.",
+    "List agents on the App Server. Request: {query?, name?, tags?, limit? (default DEFAULT_LIST_LIMIT), order?} (all optional filters). Response {ok:true, data:[…agents]}.",
     {
       query: z.string().optional().describe("Substring search on agent names."),
       name: z.string().optional().describe("Match one exact agent name."),
       tags: z.array(z.string()).optional().describe("Only agents carrying these tags."),
-      limit: z.number().int().min(1).max(100).optional().describe("Max agents to return."),
+      limit: z.number().int().min(1).max(100).optional().describe("Max agents to return. Defaults to DEFAULT_LIST_LIMIT."),
       order: z.enum(["asc", "desc"]).optional().describe("Sort order."),
     },
     async (args: any) => {
@@ -90,7 +83,7 @@ export function registerAgentTools(server: McpServer): void {
         if (args.query !== undefined) query.query = args.query;
         if (args.name !== undefined) query.name = args.name;
         if (args.tags !== undefined) query.tags = args.tags;
-        if (args.limit !== undefined) query.limit = args.limit;
+        query.limit = args.limit ?? config.defaultListLimit;
         if (args.order !== undefined) query.order = args.order;
         return ok(await c.agents.list(query));
       } catch (e) {
@@ -140,24 +133,22 @@ export function registerAgentTools(server: McpServer): void {
 
   server.tool(
     "agent_update",
-    "Update an agent's editable fields. Request: {agent_id, persona?, human?, name?, description?, model?, system?, model_settings?, context_window_limit?, hidden?, tags?} (at least one field). Response {ok:true, data:{…agent, agent_name}}. Only provided fields change.",
+    "Update an agent's editable fields. Request: {agent_id, name?, description?, model?, system?, modelSettings?, contextWindowLimit?, hidden?, tags?} (at least one field; camelCase keys match the agent-SDK update body, which maps them to the wire). Response {ok:true, data:{…agent, agent_name}}. Only provided fields change. Persona/human are create-time only (agent_create); stored agents carry a single system prompt — use system to change it.",
     {
       agent_id: agentId,
-      persona: z.string().optional(),
-      human: z.string().optional(),
       name: z.string().optional(),
       description: z.string().optional(),
       model: z.string().optional(),
       system: z.string().optional().describe("System prompt override."),
-      model_settings: z.record(z.unknown()).optional().describe("Provider model settings."),
-      context_window_limit: z.number().int().min(1).optional().describe("Context window limit override."),
+      modelSettings: z.record(z.unknown()).optional().describe("Provider model settings."),
+      contextWindowLimit: z.number().int().min(1).optional().describe("Context window limit override."),
       hidden: z.boolean().optional().describe("Hide the agent from default listings."),
       tags: z.array(z.string()).optional(),
     },
     async (args: any) => {
       try {
         const patch: Record<string, unknown> = {};
-        for (const k of ["persona", "human", "name", "description", "model", "system", "model_settings", "context_window_limit", "hidden", "tags"]) {
+        for (const k of ["name", "description", "model", "system", "modelSettings", "contextWindowLimit", "hidden", "tags"]) {
           if (args[k] !== undefined) patch[k] = args[k];
         }
         if (Object.keys(patch).length === 0) return fail("invalid_request", "Nothing to update: provide at least one field.");

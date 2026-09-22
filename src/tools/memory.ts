@@ -6,14 +6,7 @@ import { z } from "zod";
 import { config } from "../config.js";
 import { getClient, withSession, sendTurn } from "../lettaClient.js";
 import { resolveAgentRef } from "../resolve.js";
-
-const ok = (data: unknown) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: true, data }) }],
-});
-const fail = (code: string, message: string) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: { code, message } }) }],
-  isError: true as const,
-});
+import { ok, fail } from "../respond.js";
 
 const agentId = z
   .string()
@@ -66,13 +59,14 @@ export function registerMemoryTools(server: McpServer): void {
 
   server.tool(
     "memory_get",
-    "Get the agent's core memory blocks (persona, human, custom). Request: {agent_id}. Response {ok:true, data:{agent_id, agent_name, blocks}}. Read-only projection: direct agents.retrieve read first, session bootstrapState fallback. Truncated at STREAM_MAX_CHARS on the fallback path.",
+    "Get the agent's core memory blocks (persona, human, custom). Request: {agent_id}. Response {ok:true, data:{agent_id, agent_name, blocks}}. Session-backed read: agents.retrieve carries no memory fields on this backend, so the agent reports its own blocks. Truncated at STREAM_MAX_CHARS.",
     { agent_id: agentId },
     async (args: any) => {
       try {
         const r = await resolveAgentRef(args.agent_id);
         const c = await getClient();
-        // Prefer a direct read; fall back to asking the agent.
+        // agents.retrieve carries no memory fields on this backend, so this
+        // read is advisory only; the session report below is authoritative.
         try {
           const agent = r.agent ?? (await c.agents.retrieve(r.agent_id));
           const blocks = (agent as any)?.memory ?? (agent as any)?.memory_blocks ?? (agent as any)?.blocks;

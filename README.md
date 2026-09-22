@@ -7,9 +7,10 @@ Letta is the single source of truth for memory — no local fallback.
 
 Agents: `agent_create`, `agent_get`, `agent_list` (optional
 `query`/`name`/`tags`/`limit`/`order` filters), `agent_lookup`,
-`agent_update` (optional `system`/`model_settings`/
-`context_window_limit`/`hidden` in addition to persona/human/name/
-description/model/tags), `agent_delete` (requires `confirm:true`),
+`agent_update` (optional `system`/`modelSettings`/
+`contextWindowLimit`/`hidden` in addition to name/description/model/
+tags; persona/human are create-time only — stored agents carry a single
+`system` prompt), `agent_delete` (requires `confirm:true`),
 `models_list`, `bridge_health`.
 
 Memory: `memory_save`, `memory_search` (retrieval only — you reason over
@@ -29,9 +30,9 @@ envelope: `{ok:true, data:{…}}` or `{ok:false, error:{code, message}}`.
 |---|---|---|
 | `agent_create` | `{persona?, human?, name?, description?, model?, embedding?, tags?}` | `{agent_id, agent_name, agent}` |
 | `agent_get` | `{agent_id}` | `{…agent, agent_name}` |
-| `agent_list` | `{query?, name?, tags?, limit?, order?}` | `[{…agent}]` |
+| `agent_list` | `{query?, name?, tags?, limit? (default DEFAULT_LIST_LIMIT), order?}` | `[{…agent}]` |
 | `agent_lookup` | `{name?}` | `[{agent_id, name, model, tags}]` |
-| `agent_update` | `{agent_id, persona?, human?, name?, description?, model?, system?, model_settings?, context_window_limit?, hidden?, tags?}` | `{…agent, agent_name}` |
+| `agent_update` | `{agent_id, name?, description?, model?, system?, modelSettings?, contextWindowLimit?, hidden?, tags?}` | `{…agent, agent_name}` |
 | `agent_delete` | `{agent_id, confirm:true}` | `{deleted, agent_id, agent_name}` |
 | `models_list` | `{}` | catalog object |
 | `bridge_health` | `{}` | `{bridge_configured, letta_url, models_reachable, model_count?}` |
