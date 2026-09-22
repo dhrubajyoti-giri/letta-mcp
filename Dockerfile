@@ -15,7 +15,6 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
-COPY config ./config
 ENV MCP_HOST=0.0.0.0 MCP_PORT=6507
 EXPOSE 6507
 CMD ["node", "dist/index.js"]
