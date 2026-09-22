@@ -8,14 +8,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { sendTurn } from "../lettaClient.js";
 import { resolveAgentRef } from "../resolve.js";
-
-const ok = (data: unknown) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: true, data }) }],
-});
-const fail = (code: string, message: string) => ({
-  content: [{ type: "text" as const, text: JSON.stringify({ ok: false, error: { code, message } }) }],
-  isError: true as const,
-});
+import { ok, fail } from "../respond.js";
 
 const agentId = z
   .string()

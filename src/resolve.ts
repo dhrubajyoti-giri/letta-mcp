@@ -20,7 +20,18 @@ export async function resolveAgentRef(ref: string): Promise<ResolvedAgent> {
   const c = await getClient();
   const cached = displayCache.get(ref);
   if (cached && Date.now() - cached.at < DISPLAY_TTL_MS) {
-    return { agent_id: ref, agent_name: cached.name };
+    // The cache only labels responses; the id must still exist before it
+    // is used as a routing address (agents can be deleted at any time).
+    try {
+      const a: any = await c.agents.retrieve(ref);
+      const id = typeof a?.id === "string" ? a.id : ref;
+      const name = typeof a?.name === "string" ? a.name : cached.name;
+      displayCache.set(id, { name, at: Date.now() });
+      return { agent_id: id, agent_name: name, agent: a };
+    } catch {
+      displayCache.delete(ref);
+      /* fall through to id-then-name resolution below */
+    }
   }
   try {
     const a: any = await c.agents.retrieve(ref);
