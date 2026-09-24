@@ -25,8 +25,8 @@ export function registerMemoryTools(server: McpServer): void {
     async (args: any) => {
       try {
         const r = await resolveAgentRef(args.agent_id);
-        const tags = args.tags?.length ? ` (tags: ${args.tags.join(", ")})` : "";
-        const reply = await sendTurn(r.agent_id, `Remember this long-term fact${tags}: ${args.text}`);
+        const tags = args.tags?.length ? " (tags: " + args.tags.join(", ") + ")" : "";
+        const reply = await sendTurn(r.agent_id, "Remember this long-term fact" + tags + ": " + args.text);
         return ok({ saved: true, agent_id: r.agent_id, agent_name: r.agent_name, tags: args.tags ?? [], detail: reply });
       } catch (e) {
         return fail("bridge_error", (e as Error).message);
@@ -48,7 +48,7 @@ export function registerMemoryTools(server: McpServer): void {
         const topK = args.top_k ?? config.defaultTopK;
         const reply = await sendTurn(
           r.agent_id,
-          `Search your long-term memory and answer concisely (consider at most ${topK} relevant items): ${args.query}`,
+          "Search your long-term memory and answer concisely (consider at most " + topK + " relevant items): " + args.query,
         );
         return ok({ agent_id: r.agent_id, agent_name: r.agent_name, query: args.query, top_k: topK, answer: reply });
       } catch (e) {
@@ -65,8 +65,6 @@ export function registerMemoryTools(server: McpServer): void {
       try {
         const r = await resolveAgentRef(args.agent_id);
         const c = await getClient();
-        // agents.retrieve carries no memory fields on this backend, so this
-        // read is advisory only; the session report below is authoritative.
         try {
           const agent = r.agent ?? (await c.agents.retrieve(r.agent_id));
           const blocks = (agent as any)?.memory ?? (agent as any)?.memory_blocks ?? (agent as any)?.blocks;
@@ -95,28 +93,6 @@ export function registerMemoryTools(server: McpServer): void {
   );
 
   server.tool(
-    "memory_update_block",
-    "Update one core memory block (e.g. label 'human') on the agent. Request: {agent_id, label, value}. Response {ok:true, data:{updated, agent_id, agent_name, label, detail}}. Semantic set via a turn — the agent interprets and applies it, not a row write.",
-    {
-      agent_id: agentId,
-      label: z.string().min(1).describe("Block label, e.g. 'persona' or 'human'."),
-      value: z.string().min(1).describe("New block content."),
-    },
-    async (args: any) => {
-      try {
-        const r = await resolveAgentRef(args.agent_id);
-        const reply = await sendTurn(
-          r.agent_id,
-          `Update your core memory block [${args.label}] to exactly: ${args.value}`,
-        );
-        return ok({ updated: true, agent_id: r.agent_id, agent_name: r.agent_name, label: args.label, detail: reply });
-      } catch (e) {
-        return fail("bridge_error", (e as Error).message);
-      }
-    },
-  );
-
-  server.tool(
     "memory_delete",
     "Delete one item from the agent's long-term memory by describing it (id, label, or quoted text). Request: {agent_id, id}. Response {ok:true, data:{deleted, agent_id, agent_name, ref, detail}}. Semantic removal via a turn, not a row delete.",
     {
@@ -128,7 +104,7 @@ export function registerMemoryTools(server: McpServer): void {
         const r = await resolveAgentRef(args.agent_id);
         const reply = await sendTurn(
           r.agent_id,
-          `Delete this from your long-term memory: ${args.id}. Confirm what was removed.`,
+          "Delete this from your long-term memory: " + args.id + ". Confirm what was removed.",
         );
         return ok({ deleted: true, agent_id: r.agent_id, agent_name: r.agent_name, ref: args.id, detail: reply });
       } catch (e) {
